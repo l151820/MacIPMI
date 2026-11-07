@@ -61,7 +61,20 @@ build/ipmi-cli -H 192.168.2.61 -U ADMIN -v power status   # -v zeigt die Pakete
 
 Befehle: `caps`, `info`, `power status|on|off|soft|cycle|reset`, `chassis`, `identify [s]`,
 `sensors`, `sel [clear]`, `fru`, `lan`, `users`, `fan [standard|full|optimal|heavyio]`,
-`kvm [snapshot datei.png]` (Bildschirmfoto über die native Konsole).
+`kvm [snapshot datei.png]` (Bildschirmfoto über die native Konsole), `kvm console` (siehe unten).
+
+### Konsole im Terminal
+
+```bash
+build/ipmi-cli -H 192.168.2.61 -U ADMIN kvm console              # Layout des Servers: de
+build/ipmi-cli -H 192.168.2.61 -U ADMIN kvm console --layout us
+```
+
+Das Terminal wird selbst zur KVM-Konsole. In iTerm2 (und WezTerm) erscheint das echte Bild über das
+Inline-Image-Protokoll, in anderen Terminals eine farbige Blockgrafik (`--mode image|blocks` erzwingt
+eine Darstellung). Eingaben gehen an den Server – auch Strg+C. **Strg+]** öffnet das Menü:
+`q` beenden · `d` Strg+Alt+Entf · `1`–`6` Strg+Alt+F1–F6 · `]` Strg+] senden. Da ein Terminal Zeichen
+statt Tasten liefert, muss `--layout` zum Tastaturlayout des Servers passen.
 
 ## Aufbau
 

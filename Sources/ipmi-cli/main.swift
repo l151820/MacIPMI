@@ -21,6 +21,9 @@ Befehle:
   lan                          Netzwerkkonfiguration des BMC
   users                        Benutzerliste
   fan [standard|full|optimal|heavyio]   Supermicro-Lüftermodus lesen/setzen
+  kvm console [--layout de|us] [--mode image|blocks]
+                               KVM-Konsole direkt im Terminal (iTerm2: echtes Bild, sonst Blockgrafik).
+                               Strg+] öffnet das Menü (q = beenden). --layout = Tastaturlayout des Servers
   kvm [snapshot [datei.png]]   Native Konsole: verbinden und ein Bildschirmfoto speichern
 """
 
@@ -187,14 +190,41 @@ do {
         }
 
     case "kvm":
-        let out = URL(fileURLWithPath: args.count > 1 ? args[1] : "kvm-snapshot.png")
+        let isConsole = args.first == "console"
         let logger: @Sendable (String) -> Void = { FileHandle.standardError.write(Data(("  " + $0 + "\n").utf8)) }
         // MACIPMI_KVM_TOKEN skips the web login (for tests against a local stub server).
         let params = if let t = ProcessInfo.processInfo.environment["MACIPMI_KVM_TOKEN"] {
             KVMConsoleParams(host: host, token: t, videoPort: port == 623 ? 5900 : port)
         } else {
-            try await SupermicroWeb.mintKVMConsole(host: host, username: user, password: password, log: logger)
+            try await SupermicroWeb.mintKVMConsole(host: host, username: user, password: password,
+                                                   log: isConsole && !verbose ? nil : logger)
         }
+
+        if isConsole {
+            var layout = KeyboardLayout.de
+            var mode = TerminalConsole.detectMode()
+            var k = 1
+            while k < args.count {
+                switch args[k] {
+                case "--layout":
+                    k += 1
+                    guard k < args.count, let l = KeyboardLayout(rawValue: args[k]) else { fail("--layout de|us") }
+                    layout = l
+                case "--mode":
+                    k += 1
+                    guard k < args.count, let m = TerminalConsole.Mode(rawValue: args[k]) else { fail("--mode image|blocks") }
+                    mode = m
+                default:
+                    fail("Unbekannte Option: \(args[k])")
+                }
+                k += 1
+            }
+            let console = TerminalConsole(params: params, mode: mode, layout: layout, hostLabel: host)
+            if let msg = console.run() { print(msg) }
+            break
+        }
+
+        let out = URL(fileURLWithPath: args.count > 1 ? args[1] : "kvm-snapshot.png")
         print("Token erhalten, verbinde mit \(params.host):\(params.videoPort) …")
         let (events, cont) = AsyncStream<ATENKVMSession.Event>.makeStream()
         let kvm = ATENKVMSession(params: params, log: logger) { cont.yield($0) }

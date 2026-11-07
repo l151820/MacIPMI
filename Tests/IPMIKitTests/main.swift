@@ -151,7 +151,36 @@ func hermonDecoding() {
     expect(HIDKeyMap.f(1) == 0x3A && HIDKeyMap.f(12) == 0x45)
 }
 
+func terminalInput() {
+    let de = TerminalInputParser(layout: .de), us = TerminalInputParser(layout: .us)
+    func keys(_ p: TerminalInputParser, _ s: String) -> [[UInt32]] {
+        p.parse(Array(s.utf8)).flatMap { if case .keys(let k) = $0 { return k } else { return [] } }
+    }
+    expect(keys(de, "z") == [[0x1C]] && keys(de, "y") == [[0x1D]], "QWERTZ")
+    expect(keys(us, "z") == [[0x1D]], "QWERTY")
+    expect(keys(de, "Z") == [[0xE1, 0x1C]], "Shift")
+    expect(keys(de, "@") == [[0xE6, 0x14]], "AltGr+Q")
+    expect(keys(us, "@") == [[0xE1, 0x1F]], "US @")
+    expect(keys(de, "ä") == [[0x34]] && keys(de, "Ö") == [[0xE1, 0x33]], "Umlaute")
+    expect(keys(de, "/") == [[0xE1, 0x24]] && keys(de, "-") == [[0x38]], "Sonderzeichen de")
+    expect(keys(de, "^") == [[0x35], [0x2C]], "Tottaste")
+    expect(keys(de, "\r") == [[0x28]] && keys(de, "\u{7F}") == [[0x2A]], "Enter/Backspace")
+    expect(keys(de, "\u{03}") == [[0xE0, 0x06]], "Strg+C")
+    expect(keys(de, "\u{1A}") == [[0xE0, 0x1C]], "Strg+Z auf QWERTZ")
+    expect(keys(de, "\u{1B}[A") == [[0x52]], "Pfeil hoch")
+    expect(keys(de, "\u{1B}[1;5C") == [[0xE0, 0x4F]], "Strg+Pfeil rechts")
+    expect(keys(de, "\u{1B}OP") == [[0x3A]] && keys(de, "\u{1B}[24~") == [[0x45]], "F1/F12")
+    expect(keys(de, "\u{1B}[3~") == [[0x4C]], "Entf")
+    expect(keys(de, "\u{1B}") == [[0x29]], "Esc")
+    expect(keys(de, "\u{1B}x") == [[0xE2, 0x1B]], "Alt+x")
+    expect(keys(de, "ab") == [[0x04], [0x05]], "Mehrere Zeichen")
+    expect(de.parse([0x1D]) == [.escapeHatch], "Strg+]")
+    expect(de.parse(Array("\u{1B}[<0;10;5M".utf8)) == [.mouse(column: 10, row: 5, button: 0, pressed: true, motion: false)], "Maus")
+    expect(de.parse(Array("\u{1B}[<35;11;6M".utf8)) == [.mouse(column: 11, row: 6, button: 3, pressed: true, motion: true)], "Mausbewegung")
+}
+
 let tests: [(String, () throws -> Void)] = [
+    ("terminalInput", terminalInput),
     ("hermonDecoding", hermonDecoding),
     ("jnlpParsing", jnlpParsing),
     ("checksum", checksum),
