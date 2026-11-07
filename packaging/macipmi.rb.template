@@ -13,14 +13,17 @@ cask "macipmi" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "MacIPMI.app"
   binary "#{appdir}/MacIPMI.app/Contents/MacOS/ipmi-cli"
 
   # Die App ist ad-hoc-signiert, aber nicht notarisiert.
-  postflight do
-    system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/MacIPMI.app"]
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:           ["-dr", "com.apple.quarantine", "{{appdir}}/MacIPMI.app"],
+        writable_paths: ["{{appdir}}/MacIPMI.app"],
+        must_succeed:   false
   end
 
   zap trash: [
