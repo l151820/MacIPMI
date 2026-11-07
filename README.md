@@ -44,7 +44,7 @@ git tag v0.3.0 && git push origin v0.3.0
 ```
 
 Der Workflow baut die Universal-App, legt das GitHub-Release an und aktualisiert den Cask im Tap
-[l151820/homebrew-tap](https://github.com/l151820/homebrew-tap) (über den Deploy-Key im Secret `TAP_DEPLOY_KEY`, einmalig einzurichten mit `scripts/setup-tap-key.sh`).
+[l151820/homebrew-tap](https://github.com/l151820/homebrew-tap) (Workflow `tap.yml` über den Deploy-Key im Secret `TAP_DEPLOY_KEY`, einmalig einzurichten mit `scripts/setup-tap-key.sh`). Nachholen für eine Version: `gh workflow run tap.yml -f version=0.4.0`.
 
 ## Bauen
 

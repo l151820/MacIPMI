@@ -1,0 +1,65 @@
+name: Homebrew-Tap aktualisieren
+
+# Schreibt Casks/macipmi.rb in l151820/homebrew-tap für ein bestehendes Release.
+# Wird vom Build-Workflow nach jedem Release gestartet und lässt sich für jede Version
+# nachholen: gh workflow run tap.yml -f version=0.4.0
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version ohne v, z. B. 0.4.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  tap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version bestimmen
+        id: v
+        run: |
+          V="${{ inputs.version }}"
+          V="${V#v}"
+          if [[ "$V" == *-* ]]; then echo "Vorabversion $V – Tap bleibt unverändert"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Prüfsumme aus dem Release holen
+        if: steps.v.outputs.skip != '1'
+        id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.v.outputs.version }}"
+          gh release download "v$V" --repo "$GITHUB_REPOSITORY" -p "MacIPMI-$V.zip" -D dl
+          echo "sha=$(sha256sum "dl/MacIPMI-$V.zip" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Cask in den Tap schreiben
+        if: steps.v.outputs.skip != '1'
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+        run: |
+          if [[ -z "$TAP_DEPLOY_KEY" ]]; then
+            echo "::error::Secret TAP_DEPLOY_KEY fehlt (scripts/setup-tap-key.sh ausführen)"
+            exit 1
+          fi
+          V="${{ steps.v.outputs.version }}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$TAP_DEPLOY_KEY" > ~/.ssh/tap_key
+          chmod 600 ~/.ssh/tap_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone git@github.com:l151820/homebrew-tap.git tap
+          mkdir -p tap/Casks
+          sed -e "s/@VERSION@/$V/" -e "s/@SHA256@/${{ steps.sha.outputs.sha }}/" \
+            packaging/macipmi.rb.template > tap/Casks/macipmi.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/macipmi.rb
+          if git diff --cached --quiet; then echo "Cask ist schon auf $V"; exit 0; fi
+          git commit -m "macipmi $V"
+          git push origin HEAD
+          rm -f ~/.ssh/tap_key

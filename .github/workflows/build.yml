@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: build-${{ github.ref }}
@@ -68,6 +69,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+            exit 0
+          fi
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "MacIPMI ${{ steps.version.outputs.version }}" \
             --generate-notes \
@@ -76,26 +81,5 @@ jobs:
       - name: Homebrew-Tap aktualisieren
         if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
         env:
-          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
-        run: |
-          if [[ -z "$TAP_DEPLOY_KEY" ]]; then
-            echo "::warning::Secret TAP_DEPLOY_KEY fehlt – Homebrew-Tap nicht aktualisiert (siehe scripts/setup-tap-key.sh)"
-            exit 0
-          fi
-          V="${{ steps.version.outputs.version }}"
-          SHA=$(shasum -a 256 "dist/MacIPMI-$V.zip" | cut -d' ' -f1)
-          mkdir -p ~/.ssh
-          printf '%s\n' "$TAP_DEPLOY_KEY" > ~/.ssh/tap_key
-          chmod 600 ~/.ssh/tap_key
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-          git clone git@github.com:l151820/homebrew-tap.git tap
-          mkdir -p tap/Casks
-          sed -e "s/@VERSION@/$V/" -e "s/@SHA256@/$SHA/" packaging/macipmi.rb.template > tap/Casks/macipmi.rb
-          cd tap
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/macipmi.rb
-          if git diff --cached --quiet; then echo "Cask unverändert"; exit 0; fi
-          git commit -m "macipmi $V"
-          git push origin HEAD
-          rm -f ~/.ssh/tap_key
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run tap.yml --repo "$GITHUB_REPOSITORY" -f version="${{ steps.version.outputs.version }}"
