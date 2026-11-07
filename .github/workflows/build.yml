@@ -78,6 +78,10 @@ jobs:
         env:
           TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
         run: |
+          if [[ -z "$TAP_DEPLOY_KEY" ]]; then
+            echo "::warning::Secret TAP_DEPLOY_KEY fehlt – Homebrew-Tap nicht aktualisiert (siehe scripts/setup-tap-key.sh)"
+            exit 0
+          fi
           V="${{ steps.version.outputs.version }}"
           SHA=$(shasum -a 256 "dist/MacIPMI-$V.zip" | cut -d' ' -f1)
           mkdir -p ~/.ssh
