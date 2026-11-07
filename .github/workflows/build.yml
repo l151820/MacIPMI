@@ -1,0 +1,74 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Selbsttest
+        run: swift run ipmikit-selftest
+
+      - name: Version bestimmen
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: App bauen (Universal)
+        env:
+          UNIVERSAL: "1"
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ github.run_number }}
+        run: scripts/build-app.sh
+
+      - name: Pakete erstellen
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/MacIPMI.app "dist/MacIPMI-$V.zip"
+          ditto -c -k build/ipmi-cli "dist/ipmi-cli-$V.zip"
+          (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
+          ls -la dist
+
+      - name: Build-Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacIPMI-${{ steps.version.outputs.version }}
+          path: dist/*
+          retention-days: 30
+
+      - name: GitHub-Release erstellen
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "MacIPMI ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --notes "Die App ist nicht notarisiert. Nach dem Entpacken einmalig per Rechtsklick → Öffnen starten oder: xattr -dr com.apple.quarantine MacIPMI.app"
