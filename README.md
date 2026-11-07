@@ -18,21 +18,33 @@ implementiert, ebenso die KVM-Konsole (ATEN iKVM) – `ipmitool`, Java oder Rose
 | Benutzer | BMC-Benutzer anzeigen, umbenennen, Passwort setzen, aktivieren, Berechtigung ändern |
 | Konsole | Native KVM-Konsole (Bild, Tastatur, Maus, Tastenkombinationen, Bildschirmfoto), Webinterface öffnen |
 
-## Download
+## Installation
 
-Fertige Builds (Universal: Apple Silicon und Intel, macOS 14+) gibt es unter **Releases**; jeder Push auf
-`main` erzeugt zusätzlich ein Build-Artefakt unter **Actions**. Ein Release entsteht durch einen Tag:
+Mit Homebrew (App nach `/Applications`, `ipmi-cli` in den PATH):
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+brew install --cask l151820/tap/macipmi
 ```
 
-Die App ist ad-hoc-signiert, aber nicht notarisiert. Nach dem Download einmalig per Rechtsklick → **Öffnen**
-starten oder die Quarantäne entfernen:
+Aktualisieren mit `brew upgrade --cask macipmi`, entfernen mit `brew uninstall --cask macipmi`.
+
+Alternativ liegen fertige Builds (Universal: Apple Silicon und Intel, macOS 14+) unter **Releases**. Die App ist
+ad-hoc-signiert, aber nicht notarisiert – nach einem manuellen Download die Quarantäne entfernen
+(Homebrew erledigt das selbst) oder unter **Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“**
+bestätigen:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/MacIPMI.app
 ```
+
+### Neue Version veröffentlichen
+
+```bash
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+Der Workflow baut die Universal-App, legt das GitHub-Release an und aktualisiert den Cask im Tap
+[l151820/homebrew-tap](https://github.com/l151820/homebrew-tap) (über den Deploy-Key im Secret `TAP_DEPLOY_KEY`).
 
 ## Bauen
 
@@ -53,10 +65,10 @@ Beim ersten Verbindungsaufbau fragt macOS, ob MacIPMI auf das lokale Netzwerk zu
 `ipmi-cli` nutzt dieselbe Bibliothek und eignet sich zum Testen:
 
 ```bash
-build/ipmi-cli -H 192.168.2.61 caps                  # ohne Login
-IPMI_PASSWORD=… build/ipmi-cli -H 192.168.2.61 -U ADMIN info
-build/ipmi-cli -H 192.168.2.61 -U ADMIN sensors      # fragt nach dem Passwort
-build/ipmi-cli -H 192.168.2.61 -U ADMIN -v power status   # -v zeigt die Pakete
+build/ipmi-cli -H 192.168.1.100 caps                  # ohne Login
+IPMI_PASSWORD=… build/ipmi-cli -H 192.168.1.100 -U ADMIN info
+build/ipmi-cli -H 192.168.1.100 -U ADMIN sensors      # fragt nach dem Passwort
+build/ipmi-cli -H 192.168.1.100 -U ADMIN -v power status   # -v zeigt die Pakete
 ```
 
 Befehle: `caps`, `info`, `power status|on|off|soft|cycle|reset`, `chassis`, `identify [s]`,
@@ -66,8 +78,8 @@ Befehle: `caps`, `info`, `power status|on|off|soft|cycle|reset`, `chassis`, `ide
 ### Konsole im Terminal
 
 ```bash
-build/ipmi-cli -H 192.168.2.61 -U ADMIN kvm console              # Layout des Servers: de
-build/ipmi-cli -H 192.168.2.61 -U ADMIN kvm console --layout us
+build/ipmi-cli -H 192.168.1.100 -U ADMIN kvm console              # Layout des Servers: de
+build/ipmi-cli -H 192.168.1.100 -U ADMIN kvm console --layout us
 ```
 
 Das Terminal wird selbst zur KVM-Konsole. In iTerm2 (und WezTerm) erscheint das echte Bild über das

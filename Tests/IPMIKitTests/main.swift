@@ -31,7 +31,7 @@ func ipmiMessageMatchesWireCapture() {
 }
 
 func parsesChannelAuthCapsFromX9() throws {
-    // Real reply payload from the Supermicro X9 BMC (192.168.2.61).
+    // Real reply payload from a Supermicro X9 BMC.
     let msg = hex("81 1C 63 20 00 38 00 01 96 06 03 45 53 00 00 70")
     let r = try IPMISession.parseIPMIResponse(msg)
     expect(r.completionCode == 0)
@@ -115,17 +115,17 @@ func selEntryDescription() {
 func jnlpParsing() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
-    <jnlp spec="1.0+" codebase="http://192.168.2.61:80/">
+    <jnlp spec="1.0+" codebase="http://192.168.1.100:80/">
     <resources><j2se version="1.6.0+"/><jar href="iKVM__V1.69.21.0x0.jar" download="eager" main="true"/></resources>
     <resources os="Mac OS X" arch="x86_64"><nativelib href="libmac_x86_64__V1.0.5.jar" download="eager"/></resources>
-    <application-desc main-class="tw.com.aten.ikvm.KVMMain"><argument>192.168.2.61</argument><argument>x</argument></application-desc>
+    <application-desc main-class="tw.com.aten.ikvm.KVMMain"><argument>192.168.1.100</argument><argument>x</argument></application-desc>
     </jnlp>
     """
     let j = try JNLPDescriptor.parse(Data(xml.utf8))
-    expect(j.codebase?.absoluteString == "http://192.168.2.61:80/")
+    expect(j.codebase?.absoluteString == "http://192.168.1.100:80/")
     expect(j.mainJar == "iKVM__V1.69.21.0x0.jar")
     expect(j.mainClass == "tw.com.aten.ikvm.KVMMain")
-    expect(j.arguments == ["192.168.2.61", "x"])
+    expect(j.arguments == ["192.168.1.100", "x"])
     expect(j.nativeLibs == ["libmac_x86_64__V1.0.5.jar"])
 }
 
